@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-I/usr/local/include/libdrm
 CLINKS=-L/usr/local/lib
 
-all: checkDrm openAllGPUs openAMDGPU memAlloc deviceInfo memAllocMap memCpy
+all: checkDrm openAllGPUs openAMDGPU memAlloc deviceInfo memAllocMap memCpy userPtr
 
 checkDrm:
 	$(CC) $(CFLAGS) checkDrm.c $(CLINKS) -ldrm -o checkDrm
@@ -25,5 +25,8 @@ memCpy:
 deviceInfo:
 	$(CC) $(CFLAGS) deviceInfo.c $(CLINKS) -ldrm -ldrm_amdgpu -o deviceInfo
 
+userPtr:
+	$(CC) $(CFLAGS) userPtr.c $(CLINKS) -ldrm -ldrm_amdgpu -o userPtr
+
 clean:
-	rm checkDrm openAllGPUs openAMDGPU memAlloc deviceInfo memAllocMap memCpy
+	rm checkDrm openAllGPUs openAMDGPU memAlloc deviceInfo memAllocMap memCpy userPtr
