@@ -20,9 +20,10 @@ int gpu;
 This sample checks each drm devices and open AMDGPU device.
 */
 
-amdgpu_bo_handle gpu_alloc_buffer(amdgpu_device_handle handle,
+int gpu_alloc_buffer_map(amdgpu_device_handle handle,
                                   uint64_t size, uint64_t alignment, 
                                   uint32_t type, uint64_t flags,
+                                  amdgpu_bo_handle *bo,  void **cpu,
                                   uint64_t *vmc_addr,
                                   amdgpu_va_handle *va_handle)
 {
@@ -47,15 +48,22 @@ amdgpu_bo_handle gpu_alloc_buffer(amdgpu_device_handle handle,
     r = amdgpu_bo_va_op(buf_handle, 0, size, *vmc_addr, 0, AMDGPU_VA_OP_MAP);
     assert(r == 0);
 
-    return buf_handle;
+    r = amdgpu_bo_cpu_map(buf_handle, cpu);
+    assert(r == 0);
+    *bo = buf_handle;
+
+    return r;
 }
 
-int gpu_free_buffer(amdgpu_bo_handle bo,
+int gpu_free_buffer_unmap(amdgpu_bo_handle bo,
                               amdgpu_va_handle va_handle,
                               uint64_t vmc_addr,
                               uint64_t size)
 {
     int r;
+    r = amdgpu_bo_cpu_unmap(bo);
+    assert(r == 0);
+
     r = amdgpu_bo_va_op(bo, 0, size, vmc_addr, 0, AMDGPU_VA_OP_UNMAP);
     assert(r == 0);
 
@@ -81,6 +89,7 @@ int main()
     amdgpu_bo_handle bo_handle;
     amdgpu_va_handle va_handle;
     uint64_t vmc_addr;
+    void *cpu;
 
     for(i=0;i<NUM_GPUS;i++){
       gpu = open(gpu_loc, O_RDWR | O_CLOEXEC);
@@ -94,38 +103,13 @@ int main()
           }
           printf("GPU on %s is [%s]\n", gpu_loc, ver->name);
 
-          bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
+          r = gpu_alloc_buffer_map(handle, BUFFER_SIZE,
                                         BUFFER_ALIGN,
-                                        AMDGPU_GEM_DOMAIN_VRAM,
-                                        AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-                                        &vmc_addr, &va_handle);
-
-          r = gpu_free_buffer(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
+                                        AMDGPU_GEM_DOMAIN_GTT, 0,
+                                        &bo_handle, &cpu, &vmc_addr, &va_handle);
           assert(r == 0);
 
-          bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
-                                        BUFFER_ALIGN,
-                                        AMDGPU_GEM_DOMAIN_VRAM,
-                                        AMDGPU_GEM_CREATE_NO_CPU_ACCESS,
-                                        &vmc_addr, &va_handle);
-
-          r = gpu_free_buffer(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
-          assert(r == 0);
-
-          bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
-                                        BUFFER_ALIGN,
-                                        AMDGPU_GEM_DOMAIN_GTT,
-                                        0, &vmc_addr, &va_handle);
-
-          r = gpu_free_buffer(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
-          assert(r == 0);
-
-          bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
-                                        BUFFER_ALIGN,
-                                        AMDGPU_GEM_DOMAIN_GTT,
-                                        AMDGPU_GEM_CREATE_CPU_GTT_USWC,
-                                        &vmc_addr, &va_handle);
-          r = gpu_free_buffer(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
+          r = gpu_free_buffer_unmap(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
           assert(r == 0);
 
           r = amdgpu_device_deinitialize(handle);
