@@ -42,6 +42,9 @@ int main()
             struct amdgpu_gpu_info info = {0};
             r = amdgpu_query_gpu_info(handle, &info);
             printf("Num of Shader Engines: %u \nNum of graphics context: %u\n", info.num_shader_engines, info.num_hw_gfx_contexts);
+            struct amdgpu_gds_resource_info gds_info = {0};
+            r = amdgpu_query_gds_info(handle, &gds_info);
+            printf("Total GDS size: %u\n",gds_info.gds_total_size);
             r = amdgpu_device_deinitialize(handle);
           }
         }

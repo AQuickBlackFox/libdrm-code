@@ -19,6 +19,55 @@ int gpu;
 /*
 This sample checks each drm devices and open AMDGPU device.
 */
+
+amdgpu_bo_handle gpu_alloc_buffer(amdgpu_device_handle handle,
+                                  uint64_t size, uint64_t alignment, 
+                                  uint32_t type, uint64_t flags,
+                                  uint64_t *vmc_addr,
+                                  amdgpu_va_handle *va_handle)
+{
+    struct amdgpu_bo_alloc_request req = {0};
+    amdgpu_bo_handle buf_handle;
+    int r;
+
+    req.alloc_size = size;
+    req.phys_alignment = alignment;
+    req.preferred_heap = type;
+    req.flags = flags;
+
+    r = amdgpu_bo_alloc(handle, &req, &buf_handle);
+    assert(r == 0);
+
+    r = amdgpu_va_range_alloc(handle,
+                              amdgpu_gpu_va_range_general,
+                              size, alignment, 0, vmc_addr,
+                              va_handle, 0);
+    assert(r == 0);
+
+    r = amdgpu_bo_va_op(buf_handle, 0, size, *vmc_addr, 0, AMDGPU_VA_OP_MAP);
+    assert(r == 0);
+
+    return buf_handle;
+}
+
+int gpu_free_buffer(amdgpu_bo_handle bo,
+                              amdgpu_va_handle va_handle,
+                              uint64_t vmc_addr,
+                              uint64_t size)
+{
+    int r;
+    r = amdgpu_bo_va_op(bo, 0, size, vmc_addr, 0, AMDGPU_VA_OP_UNMAP);
+    assert(r == 0);
+
+    r = amdgpu_va_range_free(va_handle);
+    assert(r == 0);
+
+    r = amdgpu_bo_free(bo);
+    assert(r == 0);
+
+    return 0;
+}
+
 int main()
 {
     int avail = drmAvailable();
@@ -29,10 +78,9 @@ int main()
     int i;
     uint32_t major, minor;
     amdgpu_device_handle handle;
+    amdgpu_bo_handle bo_handle;
     amdgpu_va_handle va_handle;
-    uint64_t va;
-
-    printf("Available AMDGPUs\n");
+    uint64_t vmc_addr;
 
     for(i=0;i<NUM_GPUS;i++){
       gpu = open(gpu_loc, O_RDWR | O_CLOEXEC);
@@ -46,42 +94,14 @@ int main()
           }
           printf("GPU on %s is [%s]\n", gpu_loc, ver->name);
 
-          struct amdgpu_bo_alloc_request req = {0};
-          amdgpu_bo_handle buf_handle;
-          req.alloc_size = BUFFER_SIZE;
-          req.phys_alignment = BUFFER_ALIGN;
-          req.preferred_heap = AMDGPU_GEM_DOMAIN_GTT;
+          bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
+                                        BUFFER_ALIGN,
+                                        AMDGPU_GEM_DOMAIN_VRAM,
+                                        AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+                                        &vmc_addr, &va_handle);
 
-          r = amdgpu_bo_alloc(handle, &req, &buf_handle);
-          if(r){
-            printf("Unable to create buffer\n");
-            return -1;
-          }
-          r = amdgpu_va_range_alloc(handle,
-                                    amdgpu_gpu_va_range_general,
-                                    BUFFER_SIZE, BUFFER_ALIGN, 0,
-                                    &va, &va_handle, 0);
-
-          if(r){
-            printf("Unable to range alloc va\n");
-          }else{printf("Range Alloc Successful\n");
-}
-          r = amdgpu_bo_va_op(buf_handle, 0, BUFFER_SIZE, va, 0, AMDGPU_VA_OP_MAP);
-
-          if(r){
-            printf("Unable to map va\n");
-          }else{printf("Mapped Successful \n");}
-
-          r = amdgpu_va_range_free(va_handle);
-          if(r){
-            printf("Unable to free range\n");
-          }else{printf("Freed range\n");}
-
-          r = amdgpu_bo_free(buf_handle);
-          if(r){
-            printf("Unable to free buffer\n");
-          }else{printf("Freed Buffer\n");}
-
+          r = gpu_free_buffer(bo_handle, va_handle, vmc_addr, BUFFER_SIZE);
+          assert(r == 0);
           r = amdgpu_device_deinitialize(handle);
           if(r){
             printf("Unable to deinitialize device\n");
