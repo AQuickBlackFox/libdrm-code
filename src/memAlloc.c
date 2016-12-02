@@ -21,7 +21,7 @@ This sample checks each drm devices and open AMDGPU device.
 */
 
 amdgpu_bo_handle gpu_alloc_buffer(amdgpu_device_handle handle,
-                                  uint64_t size, uint64_t alignment, 
+                                  uint64_t size, uint64_t alignment,
                                   uint32_t type, uint64_t flags,
                                   uint64_t *vmc_addr,
                                   amdgpu_va_handle *va_handle)
@@ -90,8 +90,7 @@ int main()
           int r = amdgpu_device_initialize(gpu, &major, &minor, &handle);
           if(r){
             printf("Unable to initialize AMDGPU\n");
-            return -1;
-          }
+          } else {
           printf("GPU on %s is [%s]\n", gpu_loc, ver->name);
 
           bo_handle = gpu_alloc_buffer(handle, BUFFER_SIZE,
@@ -133,7 +132,7 @@ int main()
             printf("Unable to deinitialize device\n");
           }
         }
-
+      }
         close(gpu);
       }
       gpu_loc[13] += 0x1;
