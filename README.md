@@ -5,7 +5,7 @@ DRM AMDGPU/Radeon Samples
 ## Pre-reqs
 
 For building drm on ubuntu
-`sudo apt-get install autoconf xutils-dev libtool libpciaccess-dev`
+`sudo apt-get install autoconf xutils-dev libtool libpciaccess-dev libpthread-stubs0-dev`
 
 ## Installation
 `./autogen.sh; make`
