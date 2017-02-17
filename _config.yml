@@ -1,0 +1,8 @@
+title: Libdrm-examples
+description: libdrm AMDGPU/Radeon examples
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-modernist
+
+gems:
+  - jekyll-mentions
